@@ -1001,6 +1001,7 @@ const ALLOWED_CONSOLE_COMMANDS = new Set([
   "openclaw.agents.bind",
   "openclaw.models.set",
   "openclaw.config.set",
+  "openclaw.agent.message",
 ]);
 
 // Debug console command handler (POST /setup/api/console/run)
@@ -1171,6 +1172,19 @@ app.post("/setup/api/console/run", requireSetupAuth, async (req, res) => {
       try {
         const cfgSet = JSON.parse(cfgArg);
         result = await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", cfgSet.path, cfgSet.value]));
+      } catch (e) {
+        return res.status(400).json({ ok: false, error: `Invalid JSON: ${e.message}` });
+      }
+    } else if (command === "openclaw.agent.message") {
+      // arg is JSON: {"agent": "worker-1", "message": "System init"}
+      const msgArg = arg?.trim();
+      if (!msgArg) {
+        return res.status(400).json({ ok: false, error: "Agent and message required" });
+      }
+      try {
+        const msgCfg = JSON.parse(msgArg);
+        const args = ["agent", "--agent", msgCfg.agent, "--message", msgCfg.message];
+        result = await runCmd(OPENCLAW_NODE, clawArgs(args));
       } catch (e) {
         return res.status(400).json({ ok: false, error: `Invalid JSON: ${e.message}` });
       }
