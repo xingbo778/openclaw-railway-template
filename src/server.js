@@ -1171,7 +1171,12 @@ app.post("/setup/api/console/run", requireSetupAuth, async (req, res) => {
       }
       try {
         const cfgSet = JSON.parse(cfgArg);
-        result = await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", cfgSet.path, cfgSet.value]));
+        const isComplex = typeof cfgSet.value === "object";
+        const args = ["config", "set"];
+        if (isComplex) args.push("--json");
+        args.push(cfgSet.path);
+        args.push(isComplex ? JSON.stringify(cfgSet.value) : cfgSet.value);
+        result = await runCmd(OPENCLAW_NODE, clawArgs(args));
       } catch (e) {
         return res.status(400).json({ ok: false, error: `Invalid JSON: ${e.message}` });
       }
