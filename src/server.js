@@ -995,6 +995,12 @@ const ALLOWED_CONSOLE_COMMANDS = new Set([
   "openclaw.devices.approve",
   "openclaw.plugins.list",
   "openclaw.plugins.enable",
+  "openclaw.agents.add",
+  "openclaw.agents.list",
+  "openclaw.agents.set-identity",
+  "openclaw.agents.bind",
+  "openclaw.models.set",
+  "openclaw.config.set",
 ]);
 
 // Debug console command handler (POST /setup/api/console/run)
@@ -1096,6 +1102,78 @@ app.post("/setup/api/console/run", requireSetupAuth, async (req, res) => {
         });
       }
       result = await runCmd(OPENCLAW_NODE, clawArgs(["plugins", "enable", pluginName]));
+    } else if (command === "openclaw.agents.add") {
+      // arg is JSON: {"id": "worker-1", "workspace": "/data/workspace/worker-1"}
+      const agentArg = arg?.trim();
+      if (!agentArg) {
+        return res.status(400).json({ ok: false, error: "Agent config required (JSON with id and workspace)" });
+      }
+      try {
+        const agentCfg = JSON.parse(agentArg);
+        const args = ["agents", "add", agentCfg.id];
+        if (agentCfg.workspace) args.push("--workspace", agentCfg.workspace);
+        result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+      } catch (e) {
+        return res.status(400).json({ ok: false, error: `Invalid JSON: ${e.message}` });
+      }
+    } else if (command === "openclaw.agents.list") {
+      result = await runCmd(OPENCLAW_NODE, clawArgs(["agents", "list"]));
+    } else if (command === "openclaw.agents.set-identity") {
+      // arg is JSON: {"agent": "worker-1", "name": "Worker 1", "emoji": "⚙️"}
+      const idArg = arg?.trim();
+      if (!idArg) {
+        return res.status(400).json({ ok: false, error: "Identity config required" });
+      }
+      try {
+        const idCfg = JSON.parse(idArg);
+        const args = ["agents", "set-identity", "--agent", idCfg.agent];
+        if (idCfg.name) args.push("--name", idCfg.name);
+        if (idCfg.emoji) args.push("--emoji", idCfg.emoji);
+        if (idCfg.theme) args.push("--theme", idCfg.theme);
+        result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+      } catch (e) {
+        return res.status(400).json({ ok: false, error: `Invalid JSON: ${e.message}` });
+      }
+    } else if (command === "openclaw.agents.bind") {
+      // arg is JSON: {"agent": "worker-1", "bind": "telegram:ops"}
+      const bindArg = arg?.trim();
+      if (!bindArg) {
+        return res.status(400).json({ ok: false, error: "Bind config required" });
+      }
+      try {
+        const bindCfg = JSON.parse(bindArg);
+        const args = ["agents", "bind", "--agent", bindCfg.agent, "--bind", bindCfg.bind];
+        result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+      } catch (e) {
+        return res.status(400).json({ ok: false, error: `Invalid JSON: ${e.message}` });
+      }
+    } else if (command === "openclaw.models.set") {
+      // arg is JSON: {"agent": "worker-1", "model": "openrouter/deepseek/deepseek-chat-v3-0324"}
+      const modelArg = arg?.trim();
+      if (!modelArg) {
+        return res.status(400).json({ ok: false, error: "Model config required" });
+      }
+      try {
+        const modelCfg = JSON.parse(modelArg);
+        const args = ["models", "set"];
+        if (modelCfg.agent) args.push("--agent", modelCfg.agent);
+        args.push(modelCfg.model);
+        result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+      } catch (e) {
+        return res.status(400).json({ ok: false, error: `Invalid JSON: ${e.message}` });
+      }
+    } else if (command === "openclaw.config.set") {
+      // arg is JSON: {"path": "agents.defaults.maxConcurrent", "value": "8"}
+      const cfgArg = arg?.trim();
+      if (!cfgArg) {
+        return res.status(400).json({ ok: false, error: "Config path and value required" });
+      }
+      try {
+        const cfgSet = JSON.parse(cfgArg);
+        result = await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", cfgSet.path, cfgSet.value]));
+      } catch (e) {
+        return res.status(400).json({ ok: false, error: `Invalid JSON: ${e.message}` });
+      }
     } else {
       // Should never reach here due to allowlist check
       return res.status(500).json({
