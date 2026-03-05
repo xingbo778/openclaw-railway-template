@@ -28,4 +28,13 @@ else
   fi
 fi
 
+# Fix invalid gateway.bind values in existing config (e.g., "all" is not a valid option)
+CONFIG_FILE="/data/.openclaw/openclaw.json"
+if [ -f "$CONFIG_FILE" ]; then
+  if grep -q '"bind"[[:space:]]*:[[:space:]]*"all"' "$CONFIG_FILE"; then
+    sed -i 's/"bind"[[:space:]]*:[[:space:]]*"all"/"bind": "lan"/g' "$CONFIG_FILE"
+    echo "[entrypoint] Fixed invalid gateway.bind value: 'all' → 'lan'"
+  fi
+fi
+
 exec gosu openclaw node src/server.js
