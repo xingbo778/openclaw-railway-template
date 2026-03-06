@@ -1450,6 +1450,66 @@ app.use((req, res, next) => {
   return next();
 });
 
+// ========== Claude Code CLI endpoint ==========
+// POST /setup/api/claude { message: "..." }
+// Runs claude-bot (Claude Code CLI) and returns the result
+const CLAUDE_BOT_PATH = process.env.CLAUDE_BOT_PATH || "/Users/administrator/bin/claude-bot";
+
+app.post("/setup/api/claude", requireSetupAuth, async (req, res) => {
+  const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+  const { message, timeout: timeoutSecs } = body || {};
+  if (!message || typeof message !== "string" || message.trim().length === 0) {
+    return res.status(400).json({ ok: false, error: "message is required" });
+  }
+
+  const timeoutMs = Math.min((parseInt(timeoutSecs, 10) || 300) * 1000, 600000);
+  console.log(`[claude] Running claude-bot: ${message.substring(0, 80)}...`);
+
+  try {
+    const result = await new Promise((resolve) => {
+      const proc = childProcess.spawn(
+        CLAUDE_BOT_PATH,
+        ["-p", message, "--output-format", "text"],
+        {
+          stdio: ["ignore", "pipe", "pipe"],
+          env: {
+            ...process.env,
+            HOME: process.env.HOME,
+            PATH: process.env.PATH,
+          },
+        }
+      );
+
+      let out = "";
+      let err = "";
+      proc.stdout?.on("data", (d) => (out += d.toString("utf8")));
+      proc.stderr?.on("data", (d) => (err += d.toString("utf8")));
+
+      const timer = setTimeout(() => {
+        proc.kill("SIGTERM");
+        setTimeout(() => proc.kill("SIGKILL"), 3000);
+        resolve({ code: 124, output: out || err || "Timeout" });
+      }, timeoutMs);
+
+      proc.on("close", (code) => {
+        clearTimeout(timer);
+        resolve({ code: code ?? 0, output: out || err || "" });
+      });
+      proc.on("error", (spawnErr) => {
+        clearTimeout(timer);
+        resolve({ code: 127, output: `spawn error: ${spawnErr.message}` });
+      });
+    });
+
+    const output = redactSecrets(result.output.trim());
+    console.log(`[claude] Done (exit=${result.code}): ${output.substring(0, 100)}`);
+    return res.json({ ok: result.code === 0, output, exitCode: result.code });
+  } catch (err) {
+    console.error("[claude] error:", err);
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
 app.use(async (req, res) => {
   if (!isConfigured() && !req.path.startsWith("/setup")) {
     return res.redirect("/setup");
