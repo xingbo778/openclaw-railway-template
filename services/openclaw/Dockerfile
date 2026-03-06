@@ -101,10 +101,10 @@ COPY --from=openclaw-build /openclaw /openclaw
 RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"' > /usr/local/bin/openclaw \
   && chmod +x /usr/local/bin/openclaw
 
-COPY src ./src
-COPY services ./services
-COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+COPY src/core ./src/core
+COPY src/public ./src/public
+COPY services/openclaw ./services/openclaw
+RUN chmod +x ./services/openclaw/entrypoint.sh
 
 ENV SERVICE_CONFIG=../../services/openclaw/config.js
 
@@ -129,4 +129,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD curl -f http://localhost:8080/setup/healthz || exit 1
 
 USER root
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["./services/openclaw/entrypoint.sh"]

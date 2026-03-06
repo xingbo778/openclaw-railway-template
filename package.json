@@ -6,9 +6,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "node src/server.js",
-    "start": "node src/server.js",
-    "lint": "node -c src/server.js"
+    "dev": "node src/core/server.js",
+    "start": "node src/core/server.js",
+    "lint": "node -c src/core/server.js && node -c src/core/utils.js && node -c src/core/auth.js && node -c src/core/gateway.js && node -c src/core/proxy.js && node -c src/core/backup.js && node -c src/core/tui.js && node -c src/core/console.js && node -c services/openclaw/config.js && node -c services/openclaw/hooks.js"
   },
   "dependencies": {
     "express": "^5.1.0",
